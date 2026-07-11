@@ -1,8 +1,7 @@
 import os
 import logging
-import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -17,8 +16,6 @@ from telegram.constants import ParseMode
 
 # ===== CONFIGURATION =====
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-PORT = int(os.environ.get("PORT", 8080))
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 
 # Enable logging
 logging.basicConfig(
@@ -29,12 +26,9 @@ logger = logging.getLogger(__name__)
 
 # ===== MOCK DATA =====
 class CryptoData:
-    """Mock data service - replace with real API calls"""
-    
     @staticmethod
     def get_sentiment() -> Dict:
         return {
-            "overall": "Neutral",
             "fear_greed": 52,
             "trend": "Sideways",
             "updated": datetime.now().strftime("%Y-%m-%d %H:%M UTC")
@@ -89,24 +83,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     welcome_message = f"""
 📊 *Welcome to CoinPulse, {user.first_name}!*
 
-This bot provides daily market summaries and sentiment analysis from top crypto sources.
+Your crypto market intelligence bot. Get real-time sentiment, trends, gas fees, and news.
 
-*What you can do:*
-📈 /sentiment - Current market sentiment
-🔥 /trends - Top trending topics
-⛽ /gas - Gas fee estimates
-📰 /news - Latest crypto news
-📊 /menu - View all commands
+*Quick Commands:*
+📈 /sentiment - Market sentiment
+🔥 /trends - Top trends
+⛽ /gas - Gas fees
+📰 /news - Latest news
+📊 /menu - All commands
+❓ /help - Help
 
 *Stay informed, stay prepared.*
 """
     
     keyboard = [
-        [InlineKeyboardButton("📈 Market Sentiment", callback_data="sentiment")],
-        [InlineKeyboardButton("🔥 Top Trends", callback_data="trends")],
-        [InlineKeyboardButton("⛽ Gas Fees", callback_data="gas")],
-        [InlineKeyboardButton("📰 Latest News", callback_data="news")],
-        [InlineKeyboardButton("❓ Help", callback_data="help")],
+        [InlineKeyboardButton("📈 Sentiment", callback_data="sentiment"),
+         InlineKeyboardButton("🔥 Trends", callback_data="trends")],
+        [InlineKeyboardButton("⛽ Gas Fees", callback_data="gas"),
+         InlineKeyboardButton("📰 News", callback_data="news")],
+        [InlineKeyboardButton("📊 Menu", callback_data="menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -119,19 +114,19 @@ This bot provides daily market summaries and sentiment analysis from top crypto 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show the main menu."""
     keyboard = [
-        [InlineKeyboardButton("📈 Market Sentiment", callback_data="sentiment")],
-        [InlineKeyboardButton("🔥 Top Trends", callback_data="trends")],
-        [InlineKeyboardButton("⛽ Gas Fees", callback_data="gas")],
-        [InlineKeyboardButton("📰 Latest News", callback_data="news")],
-        [InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
-        [InlineKeyboardButton("❓ Help", callback_data="help")],
+        [InlineKeyboardButton("📈 Sentiment", callback_data="sentiment"),
+         InlineKeyboardButton("🔥 Trends", callback_data="trends")],
+        [InlineKeyboardButton("⛽ Gas Fees", callback_data="gas"),
+         InlineKeyboardButton("📰 News", callback_data="news")],
+        [InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+         InlineKeyboardButton("❓ Help", callback_data="help")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     message = """
 📊 *CoinPulse Main Menu*
 
-Select an option below to get started:
+Select an option below:
 """
     
     if update.callback_query:
@@ -176,23 +171,19 @@ async def sentiment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = f"""
 📊 *Market Sentiment Update*
 
-{emoji} *Overall:* {level} ({fear_greed}/100)
+{emoji} *{level}* ({fear_greed}/100)
 
 `{bar}`
 
 *Trend:* {data['trend']}
-*Last Updated:* {data['updated']}
+*Updated:* {data['updated']}
 
-*What this means:*
-• {level} indicates {level.lower()} in the market
-• Current sentiment suggests {'caution' if fear_greed < 45 else 'opportunity' if fear_greed > 55 else 'neutral stance'}
-
-*Tip:* Use this data alongside your own research.
+💡 *Insight:* {level} suggests {'caution' if fear_greed < 45 else 'opportunity' if fear_greed > 55 else 'a balanced approach'}
 """
     
     keyboard = [
-        [InlineKeyboardButton("🔄 Refresh", callback_data="sentiment")],
-        [InlineKeyboardButton("📊 Main Menu", callback_data="menu")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="sentiment"),
+         InlineKeyboardButton("📊 Menu", callback_data="menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -214,7 +205,7 @@ async def trends(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Display top trending topics."""
     trends_data = CryptoData.get_top_trends()
     
-    message = "🔥 *Top Trending Crypto Topics*\n\n"
+    message = "🔥 *Top Trending Topics*\n\n"
     
     for i, trend in enumerate(trends_data, 1):
         sentiment_emoji = {
@@ -226,19 +217,15 @@ async def trends(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         }.get(trend['sentiment'], "⚪")
         
         message += f"*{i}. {trend['title']}*\n"
-        message += f"   {sentiment_emoji} Sentiment: {trend['sentiment']}\n"
-        message += f"   💬 Mentions: {trend['mentions']}\n\n"
+        message += f"   {sentiment_emoji} {trend['sentiment']} • 💬 {trend['mentions']}\n\n"
     
     message += """
-*How to use:*
-• High mention count = high interest
-• Sentiment shows market bias
-• Use as part of your research
+💡 *Tip:* High mentions = high interest. Use with other research.
 """
     
     keyboard = [
-        [InlineKeyboardButton("🔄 Refresh", callback_data="trends")],
-        [InlineKeyboardButton("📊 Main Menu", callback_data="menu")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="trends"),
+         InlineKeyboardButton("📊 Menu", callback_data="menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -275,15 +262,12 @@ async def gas_fees(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message += f"   🔴 High: {fees['high']} Gwei\n\n"
     
     message += """
-*Gas fee tips:*
-• Wait for low fees to save on transactions
-• Check at different times of day
-• Higher fees = faster confirmation
+💡 *Tip:* Wait for low fees to save on transactions.
 """
     
     keyboard = [
-        [InlineKeyboardButton("🔄 Refresh", callback_data="gas")],
-        [InlineKeyboardButton("📊 Main Menu", callback_data="menu")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="gas"),
+         InlineKeyboardButton("📊 Menu", callback_data="menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -313,15 +297,12 @@ async def news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         message += f"ℹ️ {item['summary']}\n\n"
     
     message += """
-*Stay updated:*
-• Check back regularly for updates
-• Always verify information
-• Use multiple news sources
+💡 *Tip:* Always verify information from multiple sources.
 """
     
     keyboard = [
-        [InlineKeyboardButton("🔄 Refresh", callback_data="news")],
-        [InlineKeyboardButton("📊 Main Menu", callback_data="menu")],
+        [InlineKeyboardButton("🔄 Refresh", callback_data="news"),
+         InlineKeyboardButton("📊 Menu", callback_data="menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -353,19 +334,20 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /news - Latest news
 /help - This message
 
-*What CoinPulse does:*
-• Aggregates market sentiment data
-• Shows trending topics
-• Displays gas fees
-• Provides news summaries
+*Features:*
+• 📊 Market sentiment analysis
+• 🔥 Trending topics
+• ⛽ Multi-chain gas fees
+• 📰 Crypto news
 
 *Privacy:*
-• No data is stored
-• No personal information collected
-• Anonymous usage only
+• No data stored
+• Anonymous usage
+
+*Support:* Coming soon!
 """
     
-    keyboard = [[InlineKeyboardButton("📊 Main Menu", callback_data="menu")]]
+    keyboard = [[InlineKeyboardButton("📊 Menu", callback_data="menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     if update.callback_query:
@@ -387,26 +369,16 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     settings_text = """
 ⚙️ *Settings*
 
-*Notification Preferences:*
-🔔 Daily updates: OFF
-📈 Price alerts: OFF
-📰 News alerts: OFF
-
-*Language:*
-🌐 English (Default)
-
-*Data Source:*
-📊 Aggregated from multiple sources
-
 *Coming Soon:*
-• Custom notification settings
-• Favorites list
-• Personalized dashboard
+• 🔔 Daily updates
+• 📈 Custom alerts
+• 🌐 Language options
+• 🎯 Personalized feed
+
+*Currently in development.*
 """
     
-    keyboard = [
-        [InlineKeyboardButton("📊 Main Menu", callback_data="menu")],
-    ]
+    keyboard = [[InlineKeyboardButton("📊 Menu", callback_data="menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     if update.callback_query:
@@ -443,13 +415,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif query.data == "settings":
         await settings(update, context)
     else:
-        await query.edit_message_text(
-            "Invalid option. Please use /menu to see available commands.",
-            parse_mode=ParseMode.MARKDOWN,
-        )
+        await query.edit_message_text("Invalid option. Use /menu.")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message (safe fallback)."""
+    """Handle unknown messages."""
     await update.message.reply_text(
         "I'm not sure about that. Please use /menu to see available commands."
     )
@@ -457,7 +426,6 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors."""
     logger.error(f"Update {update} caused error {context.error}")
-    
     if update and update.effective_message:
         await update.effective_message.reply_text(
             "⚠️ An error occurred. Please try again later or use /help."
@@ -466,10 +434,12 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # ===== MAIN APPLICATION =====
 
 def main() -> None:
-    """Start the bot."""
+    """Start the bot using polling mode."""
     if not TOKEN:
-        logger.error("No TELEGRAM_BOT_TOKEN found in environment variables")
+        logger.error("No TELEGRAM_BOT_TOKEN found!")
         return
+    
+    logger.info("Starting CoinPulse Bot in polling mode...")
     
     # Create application
     application = Application.builder().token(TOKEN).build()
@@ -493,21 +463,9 @@ def main() -> None:
     # Add error handler
     application.add_error_handler(error_handler)
     
-    # Start the bot
-    if WEBHOOK_URL:
-        # Webhook mode (for Railway)
-        logger.info(f"Starting webhook on port {PORT}")
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=TOKEN,
-            webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-            allowed_updates=Update.ALL_TYPES
-        )
-    else:
-        # Polling mode (for local testing)
-        logger.info("Starting polling...")
-        application.run_polling()
+    # Start polling
+    logger.info("Bot is now running! Waiting for messages...")
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
