@@ -22,17 +22,17 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 
 # Enable logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# ===== MOCK DATA (Replace with real API calls) =====
+# ===== MOCK DATA =====
 class CryptoData:
-    """Mock data service - replace with CoinGecko/NewsAPI integration"""
+    """Mock data service - replace with real API calls"""
     
     @staticmethod
     def get_sentiment() -> Dict:
-        """Returns current market sentiment"""
         return {
             "overall": "Neutral",
             "fear_greed": 52,
@@ -42,7 +42,6 @@ class CryptoData:
     
     @staticmethod
     def get_top_trends() -> List[Dict]:
-        """Returns top trending topics"""
         return [
             {"title": "Bitcoin ETF Flows", "sentiment": "Positive", "mentions": 1243},
             {"title": "Ethereum Layer 2 Growth", "sentiment": "Bullish", "mentions": 987},
@@ -53,7 +52,6 @@ class CryptoData:
     
     @staticmethod
     def get_gas_fees() -> Dict:
-        """Returns current gas fee estimates"""
         return {
             "ethereum": {"low": 8, "medium": 15, "high": 30},
             "polygon": {"low": 0.5, "medium": 1, "high": 2},
@@ -62,7 +60,6 @@ class CryptoData:
     
     @staticmethod
     def get_news() -> List[Dict]:
-        """Returns latest crypto news"""
         return [
             {
                 "title": "Major Bank Announces Crypto Custody Service",
@@ -136,23 +133,30 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 Select an option below to get started:
 """
-    await update.message.reply_text(
-        message,
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=reply_markup,
-    )
+    
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            message,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup,
+        )
+        await update.callback_query.answer()
+    else:
+        await update.message.reply_text(
+            message,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup,
+        )
 
 async def sentiment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Display current market sentiment."""
     data = CryptoData.get_sentiment()
     
-    # Create sentiment bar
     fear_greed = data['fear_greed']
     bar_length = 20
     filled = int((fear_greed / 100) * bar_length)
     bar = "█" * filled + "░" * (bar_length - filled)
     
-    # Determine sentiment emoji
     if fear_greed < 30:
         emoji = "😱"
         level = "Extreme Fear"
@@ -359,9 +363,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • No data is stored
 • No personal information collected
 • Anonymous usage only
-
-*Support:*
-For questions, contact @CoinPulseSupport (this is a placeholder - replace with your actual support channel)
 """
     
     keyboard = [[InlineKeyboardButton("📊 Main Menu", callback_data="menu")]]
@@ -404,7 +405,6 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 """
     
     keyboard = [
-        [InlineKeyboardButton("🔔 Toggle Updates", callback_data="toggle_updates")],
         [InlineKeyboardButton("📊 Main Menu", callback_data="menu")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -442,21 +442,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await help_command(update, context)
     elif query.data == "settings":
         await settings(update, context)
-    elif query.data == "toggle_updates":
+    else:
         await query.edit_message_text(
-            "🔔 *Notification settings coming soon!*\n\nStay tuned for custom alerts.",
+            "Invalid option. Please use /menu to see available commands.",
             parse_mode=ParseMode.MARKDOWN,
         )
-    else:
-        await query.edit_message_text("Invalid option. Please use the menu.")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message (safe fallback)."""
     await update.message.reply_text(
         "I'm not sure about that. Please use /menu to see available commands."
     )
-
-# ===== ERROR HANDLING =====
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors."""
@@ -505,7 +501,8 @@ def main() -> None:
             listen="0.0.0.0",
             port=PORT,
             url_path=TOKEN,
-            webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+            webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+            allowed_updates=Update.ALL_TYPES
         )
     else:
         # Polling mode (for local testing)
